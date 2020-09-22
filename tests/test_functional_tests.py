@@ -1,5 +1,6 @@
 import time
 import asyncio
+import logging
 import pytest
 from concurrent.futures import ThreadPoolExecutor
 from id_getter import IDGetter
@@ -47,19 +48,27 @@ async def do_async_work(client):
 class TestThreadIdGetterFromClientShould:
 
     def test_get_ids_in_less_than_1_second(self):
-        id_getter = AsyncIDGetter()
-        clients = [Client(id_getter) for _ in range(11000)]
+        logging.basicConfig(level=logging.INFO,
+                            filename='thread_id_getter.log',
+                            filemode='w',
+                            format='%(asctime)s - %(message)s')
+        logger = logging.getLogger()
+        logger.setLevel(logging.INFO)
+        handler = logging.FileHandler(filename='thread_id_getter.log', mode='w')
+        handler.setLevel(logging.INFO)
+        logger.addHandler(handler)
+        id_getter = ThreadIDGetter(logger)
+        clients = [Client(id_getter) for _ in range(22000)]
         # execute clients work using threads
-        with ThreadPoolExecutor(max_workers=100) as executor:
-            executor.map(do_work, clients)
+        for client in clients:
+            client.work()
         times_less_than_1 = [self._less_than_1_second(client.execution_time) for client in clients]
         min_time = min(clients)
         max_time = max(clients)
-        print(min_time)
-        print(max_time)
+        print(f'\nMin Time: {min_time.execution_time}')
+        print(f'\nMax Time: {max_time.execution_time}')
         assert all(times_less_than_1)
         unique_ids = set([client.id for client in clients])
-        print('Hi')
         assert len(unique_ids) == len(clients)
 
     @staticmethod

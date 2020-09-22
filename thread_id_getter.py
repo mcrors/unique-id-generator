@@ -5,15 +5,10 @@ from id_gen import gen_unique_id
 from id_getter import IDGetter, IDPool, IDGetterError
 
 
-logging.basicConfig(level=logging.INFO,
-                    filename='thread_id_getter.log',
-                    filemode='w',
-                    format='%(asctime)s - %(message)s')
-
-
 class ThreadIDGetter(IDGetter):
 
-    def __init__(self):
+    def __init__(self, logger):
+        self._logger = logger
         self._id_pool_1 = IDPool(name='Pool1')
         self._id_pool_2 = IDPool(name='Pool2')
         self._pool_lock = threading.Lock()
@@ -21,18 +16,17 @@ class ThreadIDGetter(IDGetter):
         self._fill_id_pool(self._id_pool_2)
 
     def get_id(self):
+        id_pool = self._get_id_pool()
         with self._pool_lock:
-            id_pool = self._get_id_pool()
             result = id_pool.pop()
-            logging.info(f'ID: {result}. Getting ID from {id_pool.name}. Remaining IDs in pool {len(id_pool)}')
+        self._logger.info(f'ID: {result}. Getting ID from {id_pool.name}. Remaining IDs in pool {len(id_pool)}')
         return result
 
-    @staticmethod
-    def _fill_id_pool(id_pool: IDPool):
-        logging.info(f'STARTING: refill pool {id_pool.name}')
+    def _fill_id_pool(self, id_pool: IDPool):
+        self._logger.info(f'STARTING: refill pool {id_pool.name}')
         id_pool.extend(gen_unique_id(10000))
         id_pool.is_filling = False
-        logging.info(f'FINISHED: refill pool {id_pool.name}')
+        self._logger.info(f'FINISHED: refill pool {id_pool.name}')
 
     def _get_id_pool(self):
         no_available_pool = True
@@ -50,4 +44,4 @@ class ThreadIDGetter(IDGetter):
                     t.start()
                 return self._id_pool_2
             else:
-                logging.info("No available pools")
+                self._logger.info("No available pools")
